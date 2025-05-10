@@ -17,12 +17,9 @@ const tileCountY = Math.floor(canvas.height / gridSize);
 let gameInterval;
 let gameActive = false;
 let obstacles = [];
-let particles = [];
-let food = { x: 0, y: 0, type: 'red' }; // 'red' or 'yellow'
-let powerApple = null;
-let powerAppleTimer = 0;
+let food = { x: 0, y: 0, type: 'red' }; // 'red', 'yellow' o 'purple'
 let powerAppleActive = false;
-let powerAppleSpawnTime = 0;
+let powerAppleTimer = 0;
 let rainbowSnake = null;
 let rainbowEndTime = 0;
 
@@ -50,34 +47,14 @@ const snake2 = {
 };
 
 // Funzioni di supporto
-function shadeColor(color, percent) {
-    const num = parseInt(color.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
-    const G = Math.min(255, Math.max(0, (num >> 8 & 0x00FF) + amt));
-    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
-    return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
-}
-
-function generatePosition(awayFrom = null, minDistance = 0) {
-    let pos, attempts = 0;
+function generatePosition() {
+    let pos;
     do {
         pos = {
             x: Math.floor(Math.random() * tileCountX),
             y: Math.floor(Math.random() * tileCountY)
         };
-        
-        if (awayFrom) {
-            const dx = Math.abs(pos.x - awayFrom.x);
-            const dy = Math.abs(pos.y - awayFrom.y);
-            const distance = Math.sqrt(dx*dx + dy*dy);
-            if (distance < minDistance) continue;
-        }
-        
-        attempts++;
-        if (attempts > 100) return null;
     } while (isPositionOccupied(pos));
-    
     return pos;
 }
 
@@ -86,42 +63,20 @@ function isPositionOccupied(pos) {
         snake1.body.some(s => s.x === pos.x && s.y === pos.y) ||
         snake2.body.some(s => s.x === pos.x && s.y === pos.y) ||
         obstacles.some(o => o.x === pos.x && o.y === pos.y) ||
-        (food.x === pos.x && food.y === pos.y) ||
-        (powerApple && powerApple.x === pos.x && powerApple.y === pos.y)
+        (food.x === pos.x && food.y === pos.y)
     );
 }
 
 function createObstacles() {
     obstacles = [];
-    
-    // Crea alberi come ostacoli
-    for (let i = 0; i < 15; i++) {
-        const pos = generatePosition();
-        if (pos) {
-            obstacles.push({
-                x: pos.x,
-                y: pos.y,
-                color: "#2e8b57",
-                trunkColor: "#8B4513"
-            });
-        }
+    // Ostacoli semplici come prima
+    for (let i = 0; i < 10; i++) {
+        obstacles.push({
+            x: Math.floor(Math.random() * tileCountX),
+            y: Math.floor(Math.random() * tileCountY),
+            color: "#555555"
+        });
     }
-}
-
-function drawTree(x, y) {
-    const size = gridSize;
-    const centerX = x * gridSize + gridSize/2;
-    const centerY = y * gridSize + gridSize/2;
-    
-    // Tronco
-    ctx.fillStyle = "#8B4513";
-    ctx.fillRect(centerX - size*0.1, centerY - size*0.2, size*0.2, size*0.5);
-    
-    // Chioma
-    ctx.fillStyle = "#2e8b57";
-    ctx.beginPath();
-    ctx.arc(centerX, centerY - size*0.3, size*0.3, 0, Math.PI*2);
-    ctx.fill();
 }
 
 function drawApple(x, y, color) {
@@ -133,19 +88,10 @@ function drawApple(x, y, color) {
     ctx.shadowColor = color;
     ctx.shadowBlur = 10;
     
-    // Corpo mela
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(centerX, centerY, size/2, 0, Math.PI*2);
     ctx.fill();
-    
-    // Picciolo
-    ctx.strokeStyle = "#8B4513";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(centerX + size*0.3, centerY - size*0.3);
-    ctx.lineTo(centerX + size*0.1, centerY - size*0.5);
-    ctx.stroke();
     
     ctx.restore();
 }
@@ -158,39 +104,22 @@ function drawSnakeSegment(x, y, color, isHead = false) {
     ctx.shadowColor = color;
     ctx.shadowBlur = isHead ? 15 : 8;
     
-    // Se il serpente è in modalità arcobaleno
-    if (isHead && (snake1.body[0].x === x && snake1.body[0].y === y && snake1 === rainbowSnake) ||
-        (snake2.body[0].x === x && snake2.body[0].y === y && snake2 === rainbowSnake)) {
+    if (isHead && ((snake1.body[0].x === x && snake1.body[0].y === y && snake1 === rainbowSnake) ||
+                   (snake2.body[0].x === x && snake2.body[0].y === y && snake2 === rainbowSnake))) {
         const hue = (Date.now() / 50) % 360;
         ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
     } else {
         ctx.fillStyle = color;
     }
     
-    ctx.beginPath();
-    ctx.roundRect(
-        x * size + padding, 
-        y * size + padding, 
-        innerSize, 
-        innerSize, 
-        [4, 4, 4, 4]
-    );
-    ctx.fill();
+    ctx.fillRect(x * size + padding, y * size + padding, innerSize, innerSize);
     
     if (isHead) {
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
-        ctx.arc(
-            x * size + size * 0.7, 
-            y * size + size * 0.3, 
-            size * 0.1, 
-            0, 
-            Math.PI * 2
-        );
+        ctx.arc(x * size + size * 0.7, y * size + size * 0.3, size * 0.1, 0, Math.PI * 2);
         ctx.fill();
     }
-    
-    ctx.shadowBlur = 0;
 }
 
 // Logica del gioco
@@ -203,33 +132,33 @@ function moveSnake(snake) {
     snake.body.unshift(head);
     snake.direction = {...snake.nextDirection};
     
-    // Controlla se mangia una mela rossa o gialla
+    // Controlla collisione con il cibo
     if (head.x === food.x && head.y === food.y) {
         if (food.type === 'red') {
             snake.score += 10;
         } else if (food.type === 'yellow') {
             snake.score += 25;
+            // La mela gialla fa perdere punti all'avversario
+            const opponent = snake === snake1 ? snake2 : snake1;
+            opponent.score = Math.max(0, opponent.score - 15);
+        } else if (food.type === 'purple') {
+            // La mela viola dà il potere arcobaleno
+            rainbowSnake = snake;
+            rainbowEndTime = Date.now() + 15000; // 15 secondi
+            snake.score += 30;
         }
         
-        // Genera una nuova mela (alterna tra rossa e gialla)
+        // Genera nuovo cibo (70% rossa, 20% gialla, 10% viola)
+        const rand = Math.random();
         food = {
             ...generatePosition(),
-            type: Math.random() > 0.7 ? 'yellow' : 'red'
+            type: rand < 0.7 ? 'red' : (rand < 0.9 ? 'yellow' : 'purple')
         };
-    } 
-    // Controlla se mangia la mela viola
-    else if (powerApple && head.x === powerApple.x && head.y === powerApple.y) {
-        rainbowSnake = snake;
-        rainbowEndTime = Date.now() + 15000; // 15 secondi di potere
-        powerApple = null;
-        powerAppleActive = false;
-        snake.score += 50;
-    }
-    else {
+    } else {
         snake.body.pop();
     }
     
-    // Controlla se un giocatore ha vinto
+    // Vittoria a 300 punti
     if (snake.score >= 300) {
         gameOver(snake);
     }
@@ -237,26 +166,9 @@ function moveSnake(snake) {
 
 function killSnake(snake) {
     snake.alive = false;
-    
-    // Se il serpente è stato ucciso da un serpente arcobaleno, aggiungi punti
+    // Se ucciso da un serpente arcobaleno, aggiungi 100 punti
     if (rainbowSnake && rainbowSnake !== snake) {
         rainbowSnake.score += 100;
-    }
-}
-
-function spawnPowerApple() {
-    if (!powerAppleActive && Date.now() - powerAppleSpawnTime > 120000) { // 2 minuti
-        powerApple = generatePosition();
-        powerAppleActive = true;
-        powerAppleTimer = Date.now() + 30000; // 30 secondi di disponibilità
-    }
-}
-
-function checkPowerAppleExpiry() {
-    if (powerAppleActive && Date.now() > powerAppleTimer) {
-        powerApple = null;
-        powerAppleActive = false;
-        powerAppleSpawnTime = Date.now();
     }
 }
 
@@ -268,7 +180,7 @@ function checkRainbowPower() {
 
 // Render
 function render() {
-    // Sfondo
+    // Sfondo semplice come prima
     ctx.fillStyle = "#0f3460";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
@@ -288,18 +200,16 @@ function render() {
         ctx.stroke();
     }
     
-    // Ostacoli (alberi)
+    // Ostacoli semplici
     obstacles.forEach(obs => {
-        drawTree(obs.x, obs.y);
+        ctx.fillStyle = obs.color;
+        ctx.fillRect(obs.x * gridSize, obs.y * gridSize, gridSize, gridSize);
     });
     
     // Cibo
-    drawApple(food.x, food.y, food.type === 'yellow' ? "#ffff00" : "#ff0000");
-    
-    // Mela viola
-    if (powerApple) {
-        drawApple(powerApple.x, powerApple.y, "#aa00ff");
-    }
+    const foodColor = food.type === 'red' ? '#ff0000' : 
+                     food.type === 'yellow' ? '#ffff00' : '#aa00ff';
+    drawApple(food.x, food.y, foodColor);
     
     // Serpenti
     if (snake1.alive) {
@@ -314,7 +224,7 @@ function render() {
         });
     }
     
-    // Aggiorna punteggi e nomi
+    // Aggiorna punteggi
     p1Score.textContent = `${snake1.name}: ${snake1.score}`;
     p2Score.textContent = `${snake2.name}: ${snake2.score}`;
     p1NameDisplay.textContent = snake1.name;
@@ -327,8 +237,6 @@ function gameLoop() {
     if (snake2.alive) moveSnake(snake2);
     
     checkCollisions();
-    spawnPowerApple();
-    checkPowerAppleExpiry();
     checkRainbowPower();
     render();
     
@@ -343,8 +251,7 @@ function checkCollisions() {
         const head = snake1.body[0];
         if (
             obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y && 
-                (rainbowSnake !== snake2 || snake2.body[0].x === head.x && snake2.body[0].y === head.y))) ||
+            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
             snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y)
         ) {
             killSnake(snake1);
@@ -356,8 +263,7 @@ function checkCollisions() {
         const head = snake2.body[0];
         if (
             obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y && 
-                (rainbowSnake !== snake1 || snake1.body[0].x === head.x && snake1.body[0].y === head.y))) ||
+            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
             snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y)
         ) {
             killSnake(snake2);
@@ -379,19 +285,17 @@ function gameOver(winner = null) {
         
         let message;
         if (winner) {
-            message = `${winner.name} Wins with ${winner.score} points!`;
+            message = `${winner.name} Wins! ${winner.score} points`;
         } else if (snake1.score > snake2.score) {
-            message = `${snake1.name} Wins with ${snake1.score} points!`;
+            message = `${snake1.name} Wins! ${snake1.score} points`;
         } else if (snake2.score > snake1.score) {
-            message = `${snake2.name} Wins with ${snake2.score} points!`;
+            message = `${snake2.name} Wins! ${snake2.score} points`;
         } else {
             message = "It's a Draw!";
         }
         
         ctx.fillText("Game Over", canvas.width/2, canvas.height/2 - 40);
         ctx.fillText(message, canvas.width/2, canvas.height/2);
-        ctx.font = "20px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-        ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 40);
     }
 }
 
@@ -453,16 +357,13 @@ function startGame() {
     // Crea ostacoli
     createObstacles();
     
-    // Genera cibo
+    // Genera cibo iniziale
     food = {
         ...generatePosition(),
-        type: Math.random() > 0.7 ? 'yellow' : 'red'
+        type: 'red'
     };
     
-    // Reset mele speciali
-    powerApple = null;
-    powerAppleActive = false;
-    powerAppleSpawnTime = Date.now();
+    // Reset potere arcobaleno
     rainbowSnake = null;
     
     // Avvia gioco
