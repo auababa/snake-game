@@ -2,33 +2,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Snake Game</title>
+    <title>Snake 3D - 2 Players</title>
     <style>
         body {
-            font-family: Arial;
+            font-family: 'Arial', sans-serif;
+            background: #111;
+            color: white;
             text-align: center;
-            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
         }
         #gameContainer {
-            margin: 0 auto;
-            width: 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        #scoreDisplay {
-            font-size: 24px;
-            margin: 10px;
+        #settings {
+            margin: 20px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .color-picker {
+            display: flex;
+            align-items: center;
         }
         canvas {
-            background-color: #000;
-            border: 10px solid #333;
-            box-shadow: 0 0 20px #000;
+            border: 2px solid #333;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            background: #000;
+        }
+        button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #666;
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <h1>Snake Game</h1>
-        <div id="scoreDisplay">Score: 0</div>
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <h1>Snake 3D - 2 Players</h1>
+        <div id="settings">
+            <div class="color-picker">
+                <label for="p1Color">Player 1:</label>
+                <input type="color" id="p1Color" value="#00FF00">
+            </div>
+            <div class="color-picker">
+                <label for="p2Color">Player 2:</label>
+                <input type="color" id="p2Color" value="#FF0000">
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" id="obstacles"> Obstacles
+                </label>
+            </div>
+            <button id="startBtn">Start Game</button>
+        </div>
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        <div id="scoreDisplay">
+            <span id="p1Score">Player 1: 0</span> | 
+            <span id="p2Score">Player 2: 0</span>
+        </div>
     </div>
     <script src="game.js"></script>
 </body>
