@@ -3,9 +3,12 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const p1Score = document.getElementById("p1Score");
 const p2Score = document.getElementById("p2Score");
+const p1NameInput = document.getElementById("p1NameInput");
+const p2NameInput = document.getElementById("p2NameInput");
+const p1NameDisplay = document.getElementById("p1NameDisplay");
+const p2NameDisplay = document.getElementById("p2NameDisplay");
 const startBtn = document.getElementById("startBtn");
 const resetBtn = document.getElementById("resetBtn");
-const reviveBtn = document.getElementById("reviveBtn");
 
 // Configurazione
 const gridSize = 20;
@@ -15,28 +18,35 @@ let gameInterval;
 let gameActive = false;
 let obstacles = [];
 let particles = [];
-let food = { x: 0, y: 0 };
-let reviveApple = null;
+let food = { x: 0, y: 0, type: 'red' }; // 'red' or 'yellow'
+let powerApple = null;
+let powerAppleTimer = 0;
+let powerAppleActive = false;
+let powerAppleSpawnTime = 0;
+let rainbowSnake = null;
+let rainbowEndTime = 0;
 
 // Serpenti
 const snake1 = {
     body: [{x: 5, y: 5}, {x: 5, y: 6}, {x: 5, y: 7}],
     color: "#00ffaa",
+    originalColor: "#00ffaa",
     direction: {x: 0, y: -1},
     nextDirection: {x: 0, y: -1},
     score: 0,
     alive: true,
-    deathPosition: null
+    name: "Player 1"
 };
 
 const snake2 = {
     body: [{x: 15, y: 15}, {x: 15, y: 14}, {x: 15, y: 13}],
     color: "#ff3366",
+    originalColor: "#ff3366",
     direction: {x: 0, y: 1},
     nextDirection: {x: 0, y: 1},
     score: 0,
     alive: true,
-    deathPosition: null
+    name: "Player 2"
 };
 
 // Funzioni di supporto
@@ -77,33 +87,41 @@ function isPositionOccupied(pos) {
         snake2.body.some(s => s.x === pos.x && s.y === pos.y) ||
         obstacles.some(o => o.x === pos.x && o.y === pos.y) ||
         (food.x === pos.x && food.y === pos.y) ||
-        (reviveApple && reviveApple.x === pos.x && reviveApple.y === pos.y)
+        (powerApple && powerApple.x === pos.x && powerApple.y === pos.y)
     );
 }
 
 function createObstacles() {
     obstacles = [];
     
-    // Crea ostacoli orizzontali e verticali
-    for (let i = 0; i < 5; i++) {
-        // Ostacoli orizzontali
-        const lengthH = Math.floor(Math.random() * 5) + 3;
-        const startX = Math.floor(Math.random() * (tileCountX - lengthH));
-        const y = Math.floor(Math.random() * tileCountY);
-        
-        for (let j = 0; j < lengthH; j++) {
-            obstacles.push({x: startX + j, y: y, color: "#555555"});
-        }
-        
-        // Ostacoli verticali
-        const lengthV = Math.floor(Math.random() * 5) + 3;
-        const x = Math.floor(Math.random() * tileCountX);
-        const startY = Math.floor(Math.random() * (tileCountY - lengthV));
-        
-        for (let j = 0; j < lengthV; j++) {
-            obstacles.push({x: x, y: startY + j, color: "#555555"});
+    // Crea alberi come ostacoli
+    for (let i = 0; i < 15; i++) {
+        const pos = generatePosition();
+        if (pos) {
+            obstacles.push({
+                x: pos.x,
+                y: pos.y,
+                color: "#2e8b57",
+                trunkColor: "#8B4513"
+            });
         }
     }
+}
+
+function drawTree(x, y) {
+    const size = gridSize;
+    const centerX = x * gridSize + gridSize/2;
+    const centerY = y * gridSize + gridSize/2;
+    
+    // Tronco
+    ctx.fillStyle = "#8B4513";
+    ctx.fillRect(centerX - size*0.1, centerY - size*0.2, size*0.2, size*0.5);
+    
+    // Chioma
+    ctx.fillStyle = "#2e8b57";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - size*0.3, size*0.3, 0, Math.PI*2);
+    ctx.fill();
 }
 
 function drawApple(x, y, color) {
@@ -140,7 +158,15 @@ function drawSnakeSegment(x, y, color, isHead = false) {
     ctx.shadowColor = color;
     ctx.shadowBlur = isHead ? 15 : 8;
     
-    ctx.fillStyle = color;
+    // Se il serpente è in modalità arcobaleno
+    if (isHead && (snake1.body[0].x === x && snake1.body[0].y === y && snake1 === rainbowSnake) ||
+        (snake2.body[0].x === x && snake2.body[0].y === y && snake2 === rainbowSnake)) {
+        const hue = (Date.now() / 50) % 360;
+        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+    } else {
+        ctx.fillStyle = color;
+    }
+    
     ctx.beginPath();
     ctx.roundRect(
         x * size + padding, 
@@ -177,83 +203,67 @@ function moveSnake(snake) {
     snake.body.unshift(head);
     snake.direction = {...snake.nextDirection};
     
+    // Controlla se mangia una mela rossa o gialla
     if (head.x === food.x && head.y === food.y) {
-        snake.score += 10;
-        food = generatePosition();
+        if (food.type === 'red') {
+            snake.score += 10;
+        } else if (food.type === 'yellow') {
+            snake.score += 25;
+        }
+        
+        // Genera una nuova mela (alterna tra rossa e gialla)
+        food = {
+            ...generatePosition(),
+            type: Math.random() > 0.7 ? 'yellow' : 'red'
+        };
     } 
-    else if (reviveApple && head.x === reviveApple.x && head.y === reviveApple.y) {
-        reviveSnake(snake === snake1 ? snake2 : snake1);
-        reviveApple = null;
+    // Controlla se mangia la mela viola
+    else if (powerApple && head.x === powerApple.x && head.y === powerApple.y) {
+        rainbowSnake = snake;
+        rainbowEndTime = Date.now() + 15000; // 15 secondi di potere
+        powerApple = null;
+        powerAppleActive = false;
+        snake.score += 50;
     }
     else {
         snake.body.pop();
+    }
+    
+    // Controlla se un giocatore ha vinto
+    if (snake.score >= 300) {
+        gameOver(snake);
     }
 }
 
 function killSnake(snake) {
     snake.alive = false;
-    snake.deathPosition = { x: snake.body[0].x, y: snake.body[0].y };
     
-    // Crea mela della resurrezione lontana
-    if ((snake === snake1 && snake2.alive) || (snake === snake2 && snake1.alive)) {
-        reviveApple = generatePosition(snake.deathPosition, 8);
+    // Se il serpente è stato ucciso da un serpente arcobaleno, aggiungi punti
+    if (rainbowSnake && rainbowSnake !== snake) {
+        rainbowSnake.score += 100;
     }
 }
 
-function reviveSnake(snake) {
-    if (!snake) return;
-    
-    // Trova una posizione sicura per rinascere
-    const newPos = generateSafeRevivePosition();
-    if (!newPos) return;
-    
-    snake.alive = true;
-    snake.body = [
-        {x: newPos.x, y: newPos.y},
-        {x: newPos.x - snake.direction.x, y: newPos.y - snake.direction.y},
-        {x: newPos.x - snake.direction.x*2, y: newPos.y - snake.direction.y*2}
-    ];
-    snake.deathPosition = null;
+function spawnPowerApple() {
+    if (!powerAppleActive && Date.now() - powerAppleSpawnTime > 120000) { // 2 minuti
+        powerApple = generatePosition();
+        powerAppleActive = true;
+        powerAppleTimer = Date.now() + 30000; // 30 secondi di disponibilità
+    }
 }
 
-function generateSafeRevivePosition() {
-    let attempts = 0;
-    let pos;
-    
-    do {
-        pos = {
-            x: Math.floor(Math.random() * (tileCountX - 10)) + 5,
-            y: Math.floor(Math.random() * (tileCountY - 10)) + 5
-        };
-        
-        // Verifica che ci sia spazio per 3 segmenti
-        const dirs = [
-            {x: 0, y: -1}, {x: 1, y: 0}, 
-            {x: 0, y: 1}, {x: -1, y: 0}
-        ];
-        
-        for (const dir of dirs) {
-            const valid = [0, 1, 2].every(i => {
-                const checkPos = {
-                    x: pos.x + dir.x * i,
-                    y: pos.y + dir.y * i
-                };
-                return !isPositionOccupied(checkPos);
-            });
-            
-            if (valid) {
-                return {
-                    x: pos.x,
-                    y: pos.y,
-                    direction: dir
-                };
-            }
-        }
-        
-        attempts++;
-    } while (attempts < 50);
-    
-    return null;
+function checkPowerAppleExpiry() {
+    if (powerAppleActive && Date.now() > powerAppleTimer) {
+        powerApple = null;
+        powerAppleActive = false;
+        powerAppleSpawnTime = Date.now();
+    }
+}
+
+function checkRainbowPower() {
+    if (rainbowSnake && Date.now() > rainbowEndTime) {
+        rainbowSnake = null;
+    }
 }
 
 // Render
@@ -278,18 +288,17 @@ function render() {
         ctx.stroke();
     }
     
-    // Ostacoli
+    // Ostacoli (alberi)
     obstacles.forEach(obs => {
-        ctx.fillStyle = obs.color;
-        ctx.fillRect(obs.x * gridSize, obs.y * gridSize, gridSize, gridSize);
+        drawTree(obs.x, obs.y);
     });
     
     // Cibo
-    drawApple(food.x, food.y, "#ff0000");
+    drawApple(food.x, food.y, food.type === 'yellow' ? "#ffff00" : "#ff0000");
     
-    // Mela della resurrezione
-    if (reviveApple) {
-        drawApple(reviveApple.x, reviveApple.y, "#aa00ff");
+    // Mela viola
+    if (powerApple) {
+        drawApple(powerApple.x, powerApple.y, "#aa00ff");
     }
     
     // Serpenti
@@ -305,9 +314,11 @@ function render() {
         });
     }
     
-    // Aggiorna punteggi
-    p1Score.textContent = `Player 1: ${snake1.score}`;
-    p2Score.textContent = `Player 2: ${snake2.score}`;
+    // Aggiorna punteggi e nomi
+    p1Score.textContent = `${snake1.name}: ${snake1.score}`;
+    p2Score.textContent = `${snake2.name}: ${snake2.score}`;
+    p1NameDisplay.textContent = snake1.name;
+    p2NameDisplay.textContent = snake2.name;
 }
 
 // Game loop
@@ -316,6 +327,9 @@ function gameLoop() {
     if (snake2.alive) moveSnake(snake2);
     
     checkCollisions();
+    spawnPowerApple();
+    checkPowerAppleExpiry();
+    checkRainbowPower();
     render();
     
     if (!snake1.alive && !snake2.alive) {
@@ -329,7 +343,8 @@ function checkCollisions() {
         const head = snake1.body[0];
         if (
             obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
+            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y && 
+                (rainbowSnake !== snake2 || snake2.body[0].x === head.x && snake2.body[0].y === head.y))) ||
             snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y)
         ) {
             killSnake(snake1);
@@ -341,7 +356,8 @@ function checkCollisions() {
         const head = snake2.body[0];
         if (
             obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
+            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y && 
+                (rainbowSnake !== snake1 || snake1.body[0].x === head.x && snake1.body[0].y === head.y))) ||
             snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y)
         ) {
             killSnake(snake2);
@@ -349,7 +365,7 @@ function checkCollisions() {
     }
 }
 
-function gameOver() {
+function gameOver(winner = null) {
     if (gameActive) {
         gameActive = false;
         clearInterval(gameInterval);
@@ -361,17 +377,19 @@ function gameOver() {
         ctx.font = "30px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         ctx.textAlign = "center";
         
-        let winner;
-        if (snake1.score > snake2.score) {
-            winner = "Player 1 Wins! Congratulations!";
+        let message;
+        if (winner) {
+            message = `${winner.name} Wins with ${winner.score} points!`;
+        } else if (snake1.score > snake2.score) {
+            message = `${snake1.name} Wins with ${snake1.score} points!`;
         } else if (snake2.score > snake1.score) {
-            winner = "Player 2 Wins! Congratulations!";
+            message = `${snake2.name} Wins with ${snake2.score} points!`;
         } else {
-            winner = "It's a Draw!";
+            message = "It's a Draw!";
         }
         
         ctx.fillText("Game Over", canvas.width/2, canvas.height/2 - 40);
-        ctx.fillText(winner, canvas.width/2, canvas.height/2);
+        ctx.fillText(message, canvas.width/2, canvas.height/2);
         ctx.font = "20px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 40);
     }
@@ -382,12 +400,6 @@ document.addEventListener("keydown", e => {
     if (!gameActive && e.key === " ") {
         startGame();
         return;
-    }
-    
-    // Rivitalizza con tasto 7
-    if (e.key === "7") {
-        if (!snake1.alive) reviveSnake(snake1);
-        if (!snake2.alive) reviveSnake(snake2);
     }
     
     // Player 1 (Freccie)
@@ -411,6 +423,15 @@ document.addEventListener("keydown", e => {
     }
 });
 
+// Gestione nomi giocatori
+p1NameInput.addEventListener("change", function() {
+    snake1.name = this.value || "Player 1";
+});
+
+p2NameInput.addEventListener("change", function() {
+    snake2.name = this.value || "Player 2";
+});
+
 function startGame() {
     // Reset serpenti
     snake1.body = [{x: 5, y: 5}, {x: 5, y: 6}, {x: 5, y: 7}];
@@ -418,19 +439,31 @@ function startGame() {
     snake1.nextDirection = {x: 0, y: -1};
     snake1.alive = true;
     snake1.score = 0;
+    snake1.color = snake1.originalColor;
+    snake1.name = p1NameInput.value || "Player 1";
     
     snake2.body = [{x: 15, y: 15}, {x: 15, y: 14}, {x: 15, y: 13}];
     snake2.direction = {x: 0, y: 1};
     snake2.nextDirection = {x: 0, y: 1};
     snake2.alive = true;
     snake2.score = 0;
+    snake2.color = snake2.originalColor;
+    snake2.name = p2NameInput.value || "Player 2";
     
     // Crea ostacoli
     createObstacles();
     
     // Genera cibo
-    food = generatePosition();
-    reviveApple = null;
+    food = {
+        ...generatePosition(),
+        type: Math.random() > 0.7 ? 'yellow' : 'red'
+    };
+    
+    // Reset mele speciali
+    powerApple = null;
+    powerAppleActive = false;
+    powerAppleSpawnTime = Date.now();
+    rainbowSnake = null;
     
     // Avvia gioco
     gameActive = true;
@@ -446,10 +479,6 @@ function resetGame() {
 document.addEventListener("DOMContentLoaded", function() {
     startBtn.addEventListener("click", startGame);
     resetBtn.addEventListener("click", resetGame);
-    reviveBtn.addEventListener("click", function() {
-        if (!snake1.alive) reviveSnake(snake1);
-        if (!snake2.alive) reviveSnake(snake2);
-    });
     
     startGame();
 });
