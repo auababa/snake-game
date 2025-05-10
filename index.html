@@ -10,95 +10,118 @@
             color: #fff;
             font-family: 'Arial', sans-serif;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             height: 100vh;
             overflow: hidden;
         }
         #gameContainer {
-            position: relative;
-            margin-top: 20px;
+            display: flex;
+            flex-grow: 1;
+            padding: 20px;
         }
         canvas {
             display: block;
             border: 4px solid #333;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2),
-                        inset 0 0 20px rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
             background: #000;
         }
-        #ui {
+        #gameMenu {
+            width: 250px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-left: 1px solid #333;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            width: 600px;
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 5px;
+            gap: 20px;
         }
         .score {
             font-size: 20px;
             text-shadow: 0 0 10px currentColor;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.5);
         }
         #p1Score { color: #0f0; }
         #p2Score { color: #f00; }
-        #controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
+        .menu-section {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .menu-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
         }
         .color-picker {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 10px;
+            margin: 10px 0;
         }
         button {
             background: linear-gradient(#444, #222);
             color: white;
             border: none;
-            padding: 8px 20px;
+            padding: 10px;
             font-size: 16px;
             border-radius: 5px;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
         }
         button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            background: linear-gradient(#555, #333);
         }
         label {
             display: flex;
             align-items: center;
             gap: 5px;
             cursor: pointer;
+            margin: 5px 0;
+        }
+        input[type="color"] {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #444;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
         }
     </style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
 </head>
 <body>
-    <h1>Snake Battle Arena</h1>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="600" height="400"></canvas>
-        <div id="ui">
-            <div id="p1Score" class="score">Player 1: 0</div>
-            <div id="p2Score" class="score">Player 2: 0</div>
-            <div id="controls">
+        <div id="gameMenu">
+            <div class="score" id="p1Score">Player 1: 0</div>
+            <div class="score" id="p2Score">Player 2: 0</div>
+            
+            <div class="menu-section">
+                <span class="menu-title">Player Colors</span>
                 <div class="color-picker">
-                    <span>P1 Color:</span>
+                    <span>Player 1:</span>
                     <input type="color" id="p1Color" value="#00FF88">
                 </div>
                 <div class="color-picker">
-                    <span>P2 Color:</span>
+                    <span>Player 2:</span>
                     <input type="color" id="p2Color" value="#FF3366">
                 </div>
+            </div>
+            
+            <div class="menu-section">
+                <span class="menu-title">Game Options</span>
                 <label>
                     <input type="checkbox" id="obstaclesToggle" checked>
-                    Obstacles
+                    Enable Obstacles
                 </label>
-                <button id="startBtn">Start Game</button>
             </div>
+            
+            <button id="startBtn">Start Game</button>
+            <button id="resetBtn">Reset Game</button>
         </div>
     </div>
     <script src="game.js"></script>
