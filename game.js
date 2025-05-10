@@ -5,27 +5,24 @@ const p1Score = document.getElementById("p1Score");
 const p2Score = document.getElementById("p2Score");
 const startBtn = document.getElementById("startBtn");
 const resetBtn = document.getElementById("resetBtn");
-const p1ColorPicker = document.getElementById("p1Color");
-const p2ColorPicker = document.getElementById("p2Color");
-const obstaclesToggle = document.getElementById("obstaclesToggle");
+const reviveBtn = document.getElementById("reviveBtn");
 
 // Configurazione
 const gridSize = 20;
-const tileCountX = canvas.width / gridSize;
-const tileCountY = canvas.height / gridSize;
+const tileCountX = Math.floor(canvas.width / gridSize);
+const tileCountY = Math.floor(canvas.height / gridSize);
 let gameInterval;
 let gameActive = false;
 let obstacles = [];
 let particles = [];
 let food = { x: 0, y: 0 };
 let reviveApple = null;
-let withObstacles = true;
 
-// Serpenti - Posizioni e direzioni completamente separate
+// Serpenti
 const snake1 = {
-    body: [{x: 5, y: 5}, {x: 5, y: 6}, {x: 5, y: 7}],  // Parte in alto a sinistra
-    color: "#00FF88",
-    direction: {x: 0, y: -1},  // Inizia verso l'alto
+    body: [{x: 5, y: 5}, {x: 5, y: 6}, {x: 5, y: 7}],
+    color: "#00ffaa",
+    direction: {x: 0, y: -1},
     nextDirection: {x: 0, y: -1},
     score: 0,
     alive: true,
@@ -33,9 +30,9 @@ const snake1 = {
 };
 
 const snake2 = {
-    body: [{x: 15, y: 15}, {x: 15, y: 14}, {x: 15, y: 13}],  // Parte in basso a destra
-    color: "#FF3366",
-    direction: {x: 0, y: 1},  // Inizia verso il basso
+    body: [{x: 15, y: 15}, {x: 15, y: 14}, {x: 15, y: 13}],
+    color: "#ff3366",
+    direction: {x: 0, y: 1},
     nextDirection: {x: 0, y: 1},
     score: 0,
     alive: true,
@@ -52,29 +49,24 @@ function shadeColor(color, percent) {
     return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
 }
 
-function generatePosition(awayFrom = null, minDistance = 5) {
-    let pos, attempts = 0, valid;
+function generatePosition(awayFrom = null, minDistance = 0) {
+    let pos, attempts = 0;
     do {
-        valid = true;
         pos = {
             x: Math.floor(Math.random() * tileCountX),
             y: Math.floor(Math.random() * tileCountY)
         };
         
-        // Verifica distanza dalla posizione specificata
         if (awayFrom) {
             const dx = Math.abs(pos.x - awayFrom.x);
             const dy = Math.abs(pos.y - awayFrom.y);
             const distance = Math.sqrt(dx*dx + dy*dy);
-            if (distance < minDistance) valid = false;
+            if (distance < minDistance) continue;
         }
         
-        // Verifica collisioni
-        if (valid && isPositionOccupied(pos)) valid = false;
-        
         attempts++;
-        if (attempts > 100) return null; // Prevenzione loop infinito
-    } while (!valid);
+        if (attempts > 100) return null;
+    } while (isPositionOccupied(pos));
     
     return pos;
 }
@@ -89,39 +81,58 @@ function isPositionOccupied(pos) {
     );
 }
 
-function drawApple(x, y, color, isRevive = false) {
-    const size = gridSize * 0.6;
+function createObstacles() {
+    obstacles = [];
+    
+    // Crea ostacoli orizzontali e verticali
+    for (let i = 0; i < 5; i++) {
+        // Ostacoli orizzontali
+        const lengthH = Math.floor(Math.random() * 5) + 3;
+        const startX = Math.floor(Math.random() * (tileCountX - lengthH));
+        const y = Math.floor(Math.random() * tileCountY);
+        
+        for (let j = 0; j < lengthH; j++) {
+            obstacles.push({x: startX + j, y: y, color: "#555555"});
+        }
+        
+        // Ostacoli verticali
+        const lengthV = Math.floor(Math.random() * 5) + 3;
+        const x = Math.floor(Math.random() * tileCountX);
+        const startY = Math.floor(Math.random() * (tileCountY - lengthV));
+        
+        for (let j = 0; j < lengthV; j++) {
+            obstacles.push({x: x, y: startY + j, color: "#555555"});
+        }
+    }
+}
+
+function drawApple(x, y, color) {
+    const size = gridSize * 0.7;
     const centerX = x * gridSize + gridSize/2;
     const centerY = y * gridSize + gridSize/2;
     
     ctx.save();
     ctx.shadowColor = color;
-    ctx.shadowBlur = isRevive ? 15 : 8;
+    ctx.shadowBlur = 10;
     
     // Corpo mela
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(centerX, centerY, size/2, size/2*0.8, Math.PI/4, 0, Math.PI*2);
+    ctx.arc(centerX, centerY, size/2, 0, Math.PI*2);
     ctx.fill();
     
     // Picciolo
     ctx.strokeStyle = "#8B4513";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(centerX + size*0.2, centerY - size*0.3);
+    ctx.moveTo(centerX + size*0.3, centerY - size*0.3);
     ctx.lineTo(centerX + size*0.1, centerY - size*0.5);
     ctx.stroke();
-    
-    // Foglia
-    ctx.fillStyle = "#00AA00";
-    ctx.beginPath();
-    ctx.ellipse(centerX + size*0.3, centerY - size*0.4, size*0.2, size*0.1, Math.PI/4, 0, Math.PI*2);
-    ctx.fill();
     
     ctx.restore();
 }
 
-function drawCell(x, y, color, isHead = false) {
+function drawSnakeSegment(x, y, color, isHead = false) {
     const size = gridSize;
     const padding = 2;
     const innerSize = size - padding * 2;
@@ -129,7 +140,6 @@ function drawCell(x, y, color, isHead = false) {
     ctx.shadowColor = color;
     ctx.shadowBlur = isHead ? 15 : 8;
     
-    // Corpo principale
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(
@@ -141,26 +151,13 @@ function drawCell(x, y, color, isHead = false) {
     );
     ctx.fill();
     
-    // Ombreggiatura
-    ctx.fillStyle = shadeColor(color, -20);
-    ctx.beginPath();
-    ctx.roundRect(
-        x * size + padding + 1, 
-        y * size + padding + 1, 
-        innerSize * 0.9, 
-        innerSize, 
-        [4, 4, 4, 4]
-    );
-    ctx.fill();
-    
-    // Occhi (solo per la testa)
     if (isHead) {
-        ctx.fillStyle = shadeColor(color, 40);
+        ctx.fillStyle = "#ffffff";
         ctx.beginPath();
         ctx.arc(
             x * size + size * 0.7, 
             y * size + size * 0.3, 
-            size * 0.12, 
+            size * 0.1, 
             0, 
             Math.PI * 2
         );
@@ -168,22 +165,6 @@ function drawCell(x, y, color, isHead = false) {
     }
     
     ctx.shadowBlur = 0;
-}
-
-function generateParticles(x, y, color, count = 15) {
-    for (let i = 0; i < count; i++) {
-        particles.push({
-            x: x * gridSize + gridSize/2,
-            y: y * gridSize + gridSize/2,
-            color: color,
-            size: Math.random() * 3 + 1,
-            speed: {
-                x: (Math.random() - 0.5) * 5,
-                y: (Math.random() - 0.5) * 5
-            },
-            life: 30 + Math.random() * 20
-        });
-    }
 }
 
 // Logica del gioco
@@ -199,7 +180,6 @@ function moveSnake(snake) {
     if (head.x === food.x && head.y === food.y) {
         snake.score += 10;
         food = generatePosition();
-        generateParticles(food.x, food.y, snake.color);
     } 
     else if (reviveApple && head.x === reviveApple.x && head.y === reviveApple.y) {
         reviveSnake(snake === snake1 ? snake2 : snake1);
@@ -213,134 +193,119 @@ function moveSnake(snake) {
 function killSnake(snake) {
     snake.alive = false;
     snake.deathPosition = { x: snake.body[0].x, y: snake.body[0].y };
-    generateParticles(snake.body[0].x, snake.body[0].y, snake.color, 30);
     
-    // Crea ostacoli se l'opzione è attiva
-    if (withObstacles) {
-        snake.body.forEach(seg => {
-            obstacles.push({
-                x: seg.x,
-                y: seg.y,
-                color: shadeColor(snake.color, -40)
-            });
-        });
-    }
-    
-    // Crea mela della resurrezione lontana dalla morte
+    // Crea mela della resurrezione lontana
     if ((snake === snake1 && snake2.alive) || (snake === snake2 && snake1.alive)) {
-        reviveApple = generatePosition(snake.deathPosition, 5);
-        if (!reviveApple) reviveApple = null; // Se non trova posizione valida
+        reviveApple = generatePosition(snake.deathPosition, 8);
     }
-    
-    snake.body = [];
 }
 
 function reviveSnake(snake) {
-    if (!snake.deathPosition) return;
+    if (!snake) return;
+    
+    // Trova una posizione sicura per rinascere
+    const newPos = generateSafeRevivePosition();
+    if (!newPos) return;
     
     snake.alive = true;
-    // Ricrea il serpente con 3 segmenti partendo dalla posizione di morte
-    const dir = snake.direction;
     snake.body = [
-        {x: snake.deathPosition.x, y: snake.deathPosition.y},
-        {x: snake.deathPosition.x - dir.x, y: snake.deathPosition.y - dir.y},
-        {x: snake.deathPosition.x - dir.x*2, y: snake.deathPosition.y - dir.y*2}
+        {x: newPos.x, y: newPos.y},
+        {x: newPos.x - snake.direction.x, y: newPos.y - snake.direction.y},
+        {x: newPos.x - snake.direction.x*2, y: newPos.y - snake.direction.y*2}
     ];
     snake.deathPosition = null;
-    generateParticles(snake.body[0].x, snake.body[0].y, snake.color, 20);
 }
 
-function checkCollisions() {
-    if (snake1.alive) {
-        const head = snake1.body[0];
-        if (
-            (withObstacles && obstacles.some(o => o.x === head.x && o.y === head.y)) ||
-            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
-            snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y)
-        ) {
-            killSnake(snake1);
-        }
-    }
+function generateSafeRevivePosition() {
+    let attempts = 0;
+    let pos;
     
-    if (snake2.alive) {
-        const head = snake2.body[0];
-        if (
-            (withObstacles && obstacles.some(o => o.x === head.x && o.y === head.y)) ||
-            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
-            snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y)
-        ) {
-            killSnake(snake2);
+    do {
+        pos = {
+            x: Math.floor(Math.random() * (tileCountX - 10)) + 5,
+            y: Math.floor(Math.random() * (tileCountY - 10)) + 5
+        };
+        
+        // Verifica che ci sia spazio per 3 segmenti
+        const dirs = [
+            {x: 0, y: -1}, {x: 1, y: 0}, 
+            {x: 0, y: 1}, {x: -1, y: 0}
+        ];
+        
+        for (const dir of dirs) {
+            const valid = [0, 1, 2].every(i => {
+                const checkPos = {
+                    x: pos.x + dir.x * i,
+                    y: pos.y + dir.y * i
+                };
+                return !isPositionOccupied(checkPos);
+            });
+            
+            if (valid) {
+                return {
+                    x: pos.x,
+                    y: pos.y,
+                    direction: dir
+                };
+            }
         }
-    }
+        
+        attempts++;
+    } while (attempts < 50);
+    
+    return null;
 }
 
 // Render
 function render() {
     // Sfondo
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#0f3460";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Griglia
-    ctx.strokeStyle = "rgba(50, 50, 50, 0.3)";
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.lineWidth = 1;
     for (let i = 0; i < tileCountX; i++) {
         ctx.beginPath();
-        ctx.moveTo(i * gridSize + 0.5, 0);
-        ctx.lineTo(i * gridSize + 0.5, canvas.height);
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
         ctx.stroke();
     }
     for (let i = 0; i < tileCountY; i++) {
         ctx.beginPath();
-        ctx.moveTo(0, i * gridSize + 0.5);
-        ctx.lineTo(canvas.width, i * gridSize + 0.5);
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
         ctx.stroke();
     }
     
     // Ostacoli
-    if (withObstacles) {
-        obstacles.forEach(obs => {
-            drawCell(obs.x, obs.y, obs.color);
-        });
-    }
+    obstacles.forEach(obs => {
+        ctx.fillStyle = obs.color;
+        ctx.fillRect(obs.x * gridSize, obs.y * gridSize, gridSize, gridSize);
+    });
     
     // Cibo
-    drawApple(food.x, food.y, "#FF0000");
+    drawApple(food.x, food.y, "#ff0000");
     
     // Mela della resurrezione
     if (reviveApple) {
-        drawApple(reviveApple.x, reviveApple.y, "#AA00FF", true);
+        drawApple(reviveApple.x, reviveApple.y, "#aa00ff");
     }
     
     // Serpenti
     if (snake1.alive) {
         snake1.body.forEach((seg, i) => {
-            drawCell(seg.x, seg.y, snake1.color, i === 0);
+            drawSnakeSegment(seg.x, seg.y, snake1.color, i === 0);
         });
     }
     
     if (snake2.alive) {
         snake2.body.forEach((seg, i) => {
-            drawCell(seg.x, seg.y, snake2.color, i === 0);
+            drawSnakeSegment(seg.x, seg.y, snake2.color, i === 0);
         });
     }
     
-    // Particelle
-    particles.forEach((p, i) => {
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / 50;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        
-        p.x += p.speed.x;
-        p.y += p.speed.y;
-        p.life--;
-        
-        if (p.life <= 0) particles.splice(i, 1);
-    });
-    ctx.globalAlpha = 1;
-    
-    // Aggiorna UI
+    // Aggiorna punteggi
     p1Score.textContent = `Player 1: ${snake1.score}`;
     p2Score.textContent = `Player 2: ${snake2.score}`;
 }
@@ -358,6 +323,32 @@ function gameLoop() {
     }
 }
 
+function checkCollisions() {
+    // Controlla collisioni per snake1
+    if (snake1.alive) {
+        const head = snake1.body[0];
+        if (
+            obstacles.some(o => o.x === head.x && o.y === head.y) ||
+            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
+            snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y)
+        ) {
+            killSnake(snake1);
+        }
+    }
+    
+    // Controlla collisioni per snake2
+    if (snake2.alive) {
+        const head = snake2.body[0];
+        if (
+            obstacles.some(o => o.x === head.x && o.y === head.y) ||
+            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
+            snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y)
+        ) {
+            killSnake(snake2);
+        }
+    }
+}
+
 function gameOver() {
     if (gameActive) {
         gameActive = false;
@@ -366,23 +357,23 @@ function gameOver() {
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.fillStyle = "#FFF";
-        ctx.font = "30px Arial";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "30px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         ctx.textAlign = "center";
         
-        let message;
-        if (!snake1.alive && !snake2.alive) {
-            message = "DOUBLE KO!";
-        } else if (snake1.alive) {
-            message = "PLAYER 1 WINS!";
+        let winner;
+        if (snake1.score > snake2.score) {
+            winner = "Player 1 Wins! Congratulations!";
+        } else if (snake2.score > snake1.score) {
+            winner = "Player 2 Wins! Congratulations!";
         } else {
-            message = "PLAYER 2 WINS!";
+            winner = "It's a Draw!";
         }
         
-        ctx.fillText(message, canvas.width/2, canvas.height/2 - 30);
-        ctx.font = "20px Arial";
-        ctx.fillText(`Final: ${snake1.score} - ${snake2.score}`, canvas.width/2, canvas.height/2 + 10);
-        ctx.fillText("Press SPACE to restart", canvas.width/2, canvas.height/2 + 40);
+        ctx.fillText("Game Over", canvas.width/2, canvas.height/2 - 40);
+        ctx.fillText(winner, canvas.width/2, canvas.height/2);
+        ctx.font = "20px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        ctx.fillText("Press Start to play again", canvas.width/2, canvas.height/2 + 40);
     }
 }
 
@@ -391,6 +382,12 @@ document.addEventListener("keydown", e => {
     if (!gameActive && e.key === " ") {
         startGame();
         return;
+    }
+    
+    // Rivitalizza con tasto 7
+    if (e.key === "7") {
+        if (!snake1.alive) reviveSnake(snake1);
+        if (!snake2.alive) reviveSnake(snake2);
     }
     
     // Player 1 (Freccie)
@@ -415,31 +412,25 @@ document.addEventListener("keydown", e => {
 });
 
 function startGame() {
-    // Aggiorna impostazioni dai controlli UI
-    snake1.color = p1ColorPicker.value;
-    snake2.color = p2ColorPicker.value;
-    withObstacles = obstaclesToggle.checked;
-    
-    // Reset serpenti - Posizioni completamente separate e direzioni opposte
+    // Reset serpenti
     snake1.body = [{x: 5, y: 5}, {x: 5, y: 6}, {x: 5, y: 7}];
-    snake1.direction = {x: 0, y: -1};  // Su
+    snake1.direction = {x: 0, y: -1};
     snake1.nextDirection = {x: 0, y: -1};
     snake1.alive = true;
     snake1.score = 0;
-    snake1.deathPosition = null;
     
     snake2.body = [{x: 15, y: 15}, {x: 15, y: 14}, {x: 15, y: 13}];
-    snake2.direction = {x: 0, y: 1};  // Giù
+    snake2.direction = {x: 0, y: 1};
     snake2.nextDirection = {x: 0, y: 1};
     snake2.alive = true;
     snake2.score = 0;
-    snake2.deathPosition = null;
     
-    // Reset elementi di gioco
-    obstacles = [];
-    particles = [];
-    reviveApple = null;
+    // Crea ostacoli
+    createObstacles();
+    
+    // Genera cibo
     food = generatePosition();
+    reviveApple = null;
     
     // Avvia gioco
     gameActive = true;
@@ -448,11 +439,17 @@ function startGame() {
 }
 
 function resetGame() {
-    clearInterval(gameInterval);
     startGame();
 }
 
 // Inizializzazione
-startBtn.addEventListener("click", startGame);
-resetBtn.addEventListener("click", resetGame);
-startGame();
+document.addEventListener("DOMContentLoaded", function() {
+    startBtn.addEventListener("click", startGame);
+    resetBtn.addEventListener("click", resetGame);
+    reviveBtn.addEventListener("click", function() {
+        if (!snake1.alive) reviveSnake(snake1);
+        if (!snake2.alive) reviveSnake(snake2);
+    });
+    
+    startGame();
+});
