@@ -1,13 +1,35 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <title>Snake Game</title>
-    <link rel="stylesheet" href="style.css">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-eval';">
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        #gameContainer {
+            margin: 0 auto;
+            width: 420px;
+        }
+        #scoreDisplay {
+            font-size: 24px;
+            margin: 10px;
+        }
+        canvas {
+            background-color: #000;
+            border: 10px solid #333;
+            box-shadow: 0 0 20px #000;
+        }
+    </style>
 </head>
 <body>
-    <h1>Snake</h1>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="gameContainer">
+        <h1>Snake Game</h1>
+        <div id="scoreDisplay">Score: 0</div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+    </div>
     <script src="game.js"></script>
 </body>
 </html>
