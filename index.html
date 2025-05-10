@@ -6,124 +6,106 @@
         body {
             margin: 0;
             padding: 0;
-            background: #111;
+            background: #1a1a2e;
             color: #fff;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
-            height: 100vh;
+            flex-direction: column;
+            min-height: 100vh;
             overflow: hidden;
         }
+        
+        header {
+            text-align: center;
+            padding: 10px 0;
+            background: #16213e;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: normal;
+            color: #e94560;
+            text-shadow: 0 0 5px rgba(233, 69, 96, 0.5);
+        }
+        
         #gameContainer {
             display: flex;
             flex-grow: 1;
-            padding: 20px;
         }
-        canvas {
-            display: block;
-            border: 4px solid #333;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
-            background: #000;
-        }
+        
         #gameMenu {
             width: 250px;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            border-left: 1px solid #333;
+            padding: 15px;
+            background: rgba(22, 33, 62, 0.8);
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
+        
+        canvas {
+            display: block;
+            background: #0f3460;
+            border-left: 1px solid #e94560;
+        }
+        
         .score {
-            font-size: 20px;
-            text-shadow: 0 0 10px currentColor;
+            font-size: 18px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+        
+        #p1Score { color: #00ffaa; }
+        #p2Score { color: #ff3366; }
+        
+        .menu-section {
+            background: rgba(0, 0, 0, 0.3);
             padding: 10px;
             border-radius: 5px;
-            background: rgba(0, 0, 0, 0.5);
         }
-        #p1Score { color: #0f0; }
-        #p2Score { color: #f00; }
-        .menu-section {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border-radius: 5px;
-        }
-        .menu-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            display: block;
-        }
-        .color-picker {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-        }
+        
         button {
-            background: linear-gradient(#444, #222);
+            background: linear-gradient(to right, #e94560, #ff6b6b);
             color: white;
             border: none;
             padding: 10px;
-            font-size: 16px;
             border-radius: 5px;
             cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
+            transition: all 0.3s;
         }
+        
         button:hover {
-            background: linear-gradient(#555, #333);
-        }
-        label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            margin: 5px 0;
-        }
-        input[type="color"] {
-            width: 30px;
-            height: 30px;
-            border: 2px solid #444;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 50%;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(233, 69, 96, 0.4);
         }
     </style>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
 </head>
 <body>
+    <header>
+        <h1>Snake Battle Arena</h1>
+    </header>
+    
     <div id="gameContainer">
-        <canvas id="gameCanvas" width="600" height="400"></canvas>
         <div id="gameMenu">
             <div class="score" id="p1Score">Player 1: 0</div>
             <div class="score" id="p2Score">Player 2: 0</div>
             
             <div class="menu-section">
-                <span class="menu-title">Player Colors</span>
-                <div class="color-picker">
-                    <span>Player 1:</span>
-                    <input type="color" id="p1Color" value="#00FF88">
-                </div>
-                <div class="color-picker">
-                    <span>Player 2:</span>
-                    <input type="color" id="p2Color" value="#FF3366">
-                </div>
+                <button id="startBtn">New Game</button>
+                <button id="resetBtn">Reset Game</button>
+                <button id="reviveBtn">Revive (Press 7)</button>
             </div>
             
             <div class="menu-section">
-                <span class="menu-title">Game Options</span>
-                <label>
-                    <input type="checkbox" id="obstaclesToggle" checked>
-                    Enable Obstacles
-                </label>
+                <p>Player 1: Arrow Keys</p>
+                <p>Player 2: WASD Keys</p>
             </div>
-            
-            <button id="startBtn">Start Game</button>
-            <button id="resetBtn">Reset Game</button>
         </div>
+        
+        <canvas id="gameCanvas" width="700" height="500"></canvas>
     </div>
+    
     <script src="game.js"></script>
 </body>
 </html>
