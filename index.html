@@ -2,74 +2,78 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AUAEBABA Snake 3D - 2 Players</title>
+    <title>Snake Arena - Battaglia Serpentina</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            background: #111;
-            color: white;
-            text-align: center;
             margin: 0;
-            padding: 20px;
-        }
-        #gameContainer {
+            padding: 0;
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
+            height: 100vh;
         }
-        #settings {
-            margin: 20px;
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
+        
+        #gameContainer {
+            position: relative;
+            margin-top: 20px;
         }
-        .color-picker {
-            display: flex;
-            align-items: center;
-        }
+        
         canvas {
-            border: 2px solid #333;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            display: block;
+            border: 4px solid #333;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2),
+                        inset 0 0 20px rgba(0, 255, 255, 0.1);
             background: #000;
         }
-        button {
-            background: #444;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            margin: 5px;
-            cursor: pointer;
+        
+        #ui {
+            display: flex;
+            justify-content: space-between;
+            width: 600px;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
             border-radius: 5px;
         }
-        button:hover {
-            background: #666;
+        
+        .score {
+            font-size: 20px;
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        #p1Score { color: #0f0; }
+        #p2Score { color: #f00; }
+        
+        #startBtn {
+            background: linear-gradient(#444, #222);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            transition: all 0.3s;
+        }
+        
+        #startBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 <body>
+    <h1>Snake Arena</h1>
     <div id="gameContainer">
-        <h1>Snake 3D - 2 Players</h1>
-        <div id="settings">
-            <div class="color-picker">
-                <label for="p1Color">Player 1:</label>
-                <input type="color" id="p1Color" value="#00FF00">
-            </div>
-            <div class="color-picker">
-                <label for="p2Color">Player 2:</label>
-                <input type="color" id="p2Color" value="#FF0000">
-            </div>
-            <div>
-                <label>
-                    <input type="checkbox" id="obstacles"> Obstacles
-                </label>
-            </div>
-            <button id="startBtn">Start Game</button>
-        </div>
         <canvas id="gameCanvas" width="600" height="400"></canvas>
-        <div id="scoreDisplay">
-            <span id="p1Score">Player 1: 0</span> | 
-            <span id="p2Score">Player 2: 0</span>
+        <div id="ui">
+            <div id="p1Score" class="score">Player 1: 0</div>
+            <button id="startBtn">Nuova Partita</button>
+            <div id="p2Score" class="score">Player 2: 0</div>
         </div>
     </div>
     <script src="game.js"></script>
