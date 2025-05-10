@@ -1,22 +1,25 @@
-// game.js - Versione Avanzata
+// Inizializzazione variabili globali
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const p1Score = document.getElementById("p1Score");
 const p2Score = document.getElementById("p2Score");
 const startBtn = document.getElementById("startBtn");
 
-// Configurazione
+// Configurazione del gioco
 const gridSize = 20;
 const tileCountX = canvas.width / gridSize;
 const tileCountY = canvas.height / gridSize;
 let gameInterval;
 let gameActive = false;
+let obstacles = [];
+let particles = [];
+let food = { x: 0, y: 0 };
 
-// Serpenti (direzioni iniziali divergenti)
+// Serpenti
 const snake1 = {
     body: [{x: 8, y: 10}, {x: 7, y: 10}, {x: 6, y: 10}],
     color: "#00FF88",
-    direction: {x: 1, y: 0},  // Destra
+    direction: {x: 1, y: 0},
     nextDirection: {x: 1, y: 0},
     score: 0,
     alive: true
@@ -25,18 +28,35 @@ const snake1 = {
 const snake2 = {
     body: [{x: 12, y: 10}, {x: 13, y: 10}, {x: 14, y: 10}],
     color: "#FF3366",
-    direction: {x: -1, y: 0},  // Sinistra
+    direction: {x: -1, y: 0},
     nextDirection: {x: -1, y: 0},
     score: 0,
     alive: true
 };
 
-// Elementi di gioco
-let food = generatePosition();
-let obstacles = [];
-let particles = [];
+// Funzioni di supporto
+function shadeColor(color, percent) {
+    const num = parseInt(color.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+    const G = Math.min(255, Math.max(0, (num >> 8 & 0x00FF) + amt));
+    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+    return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
+}
 
-// Genera posizione libera
+function roundRect(x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
+
+// Funzioni di gioco
 function generatePosition() {
     let pos;
     do {
@@ -56,17 +76,14 @@ function isPositionOccupied(pos) {
     );
 }
 
-// Disegna cella con effetto 3D
 function drawCell(x, y, color, isHead = false) {
     const size = gridSize;
     const padding = 2;
     const innerSize = size - padding * 2;
     
-    // Ombreggiatura
     ctx.shadowColor = color;
     ctx.shadowBlur = isHead ? 15 : 8;
     
-    // Corpo principale
     ctx.fillStyle = color;
     roundRect(
         x * size + padding, 
@@ -78,7 +95,6 @@ function drawCell(x, y, color, isHead = false) {
         false
     );
     
-    // Effetto di profondità
     ctx.fillStyle = shadeColor(color, -20);
     roundRect(
         x * size + padding, 
@@ -90,7 +106,6 @@ function drawCell(x, y, color, isHead = false) {
         true
     );
     
-    // Highlight
     if (isHead) {
         ctx.fillStyle = shadeColor(color, 40);
         ctx.beginPath();
@@ -105,133 +120,6 @@ function drawCell(x, y, color, isHead = false) {
     }
     
     ctx.shadowBlur = 0;
-}
-
-// Rettangolo arrotondato
-function roundRect(x, y, w, h, r, fill, stroke) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    if (fill) ctx.fill();
-    if (stroke) ctx.stroke();
-}
-
-// Modifica colore
-function shadeColor(color, percent) {
-    const num = parseInt(color.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    
-    return `#${(
-        0x1000000 +
-        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-        (B < 255 ? (B < 1 ? 0 : B) : 255)
-    ).toString(16).slice(1)}`;
-}
-
-// Controlli
-document.addEventListener("keydown", e => {
-    if (!gameActive) return;
-    
-    // Player 1 (Freccie)
-    switch(e.key) {
-        case "ArrowUp": if (snake1.alive && snake1.direction.y === 0) snake1.nextDirection = {x: 0, y: -1}; break;
-        case "ArrowDown": if (snake1.alive && snake1.direction.y === 0) snake1.nextDirection = {x: 0, y: 1}; break;
-        case "ArrowLeft": if (snake1.alive && snake1.direction.x === 0) snake1.nextDirection = {x: -1, y: 0}; break;
-        case "ArrowRight": if (snake1.alive && snake1.direction.x === 0) snake1.nextDirection = {x: 1, y: 0}; break;
-    }
-    
-    // Player 2 (AWSD)
-    switch(e.key.toLowerCase()) {
-        case "w": if (snake2.alive && snake2.direction.y === 0) snake2.nextDirection = {x: 0, y: -1}; break;
-        case "s": if (snake2.alive && snake2.direction.y === 0) snake2.nextDirection = {x: 0, y: 1}; break;
-        case "a": if (snake2.alive && snake2.direction.x === 0) snake2.nextDirection = {x: -1, y: 0}; break;
-        case "d": if (snake2.alive && snake2.direction.x === 0) snake2.nextDirection = {x: 1, y: 0}; break;
-        case " ": if (!snake1.alive || !snake2.alive) resetGame(); break;
-    }
-});
-
-// Game Loop
-function gameLoop() {
-    update();
-    render();
-}
-
-function update() {
-    // Muovi serpenti
-    if (snake1.alive) moveSnake(snake1);
-    if (snake2.alive) moveSnake(snake2);
-    
-    // Controlla collisioni
-    checkCollisions();
-}
-
-function moveSnake(snake) {
-    const head = {
-        x: (snake.body[0].x + snake.direction.x + tileCountX) % tileCountX,
-        y: (snake.body[0].y + snake.direction.y + tileCountY) % tileCountY
-    };
-    
-    snake.body.unshift(head);
-    snake.direction = {...snake.nextDirection};
-    
-    if (head.x === food.x && head.y === food.y) {
-        snake.score += 10;
-        food = generatePosition();
-        generateParticles(food.x, food.y, snake.color);
-    } else {
-        snake.body.pop();
-    }
-}
-
-function checkCollisions() {
-    // Controlla snake1
-    if (snake1.alive) {
-        const head = snake1.body[0];
-        const collision = 
-            obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
-            snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y);
-        
-        if (collision) killSnake(snake1);
-    }
-    
-    // Controlla snake2
-    if (snake2.alive) {
-        const head = snake2.body[0];
-        const collision = 
-            obstacles.some(o => o.x === head.x && o.y === head.y) ||
-            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
-            snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y);
-        
-        if (collision) killSnake(snake2);
-    }
-}
-
-function killSnake(snake) {
-    snake.alive = false;
-    generateParticles(snake.body[0].x, snake.body[0].y, snake.color, 30);
-    
-    // Trasforma in ostacoli
-    snake.body.forEach(seg => {
-        obstacles.push({
-            x: seg.x,
-            y: seg.y,
-            color: shadeColor(snake.color, -40)
-        });
-    });
-    snake.body = [];
 }
 
 function generateParticles(x, y, color, count = 15) {
@@ -250,12 +138,68 @@ function generateParticles(x, y, color, count = 15) {
     }
 }
 
+// Logica del gioco
+function moveSnake(snake) {
+    const head = {
+        x: (snake.body[0].x + snake.direction.x + tileCountX) % tileCountX,
+        y: (snake.body[0].y + snake.direction.y + tileCountY) % tileCountY
+    };
+    
+    snake.body.unshift(head);
+    snake.direction = {...snake.nextDirection};
+    
+    if (head.x === food.x && head.y === food.y) {
+        snake.score += 10;
+        food = generatePosition();
+        generateParticles(food.x, food.y, snake.color);
+    } else {
+        snake.body.pop();
+    }
+}
+
+function killSnake(snake) {
+    snake.alive = false;
+    generateParticles(snake.body[0].x, snake.body[0].y, snake.color, 30);
+    
+    snake.body.forEach(seg => {
+        obstacles.push({
+            x: seg.x,
+            y: seg.y,
+            color: shadeColor(snake.color, -40)
+        });
+    });
+    snake.body = [];
+}
+
+function checkCollisions() {
+    if (snake1.alive) {
+        const head = snake1.body[0];
+        if (
+            obstacles.some(o => o.x === head.x && o.y === head.y) ||
+            (snake2.alive && snake2.body.some(s => s.x === head.x && s.y === head.y)) ||
+            snake1.body.slice(1).some(s => s.x === head.x && s.y === head.y)
+        ) {
+            killSnake(snake1);
+        }
+    }
+    
+    if (snake2.alive) {
+        const head = snake2.body[0];
+        if (
+            obstacles.some(o => o.x === head.x && o.y === head.y) ||
+            (snake1.alive && snake1.body.some(s => s.x === head.x && s.y === head.y)) ||
+            snake2.body.slice(1).some(s => s.x === head.x && s.y === head.y)
+        ) {
+            killSnake(snake2);
+        }
+    }
+}
+
+// Render
 function render() {
-    // Sfondo
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Griglia
     ctx.strokeStyle = "rgba(50, 50, 50, 0.3)";
     ctx.lineWidth = 0.5;
     for (let i = 0; i < tileCountX; i++) {
@@ -271,12 +215,10 @@ function render() {
         ctx.stroke();
     }
     
-    // Ostacoli
     obstacles.forEach(obs => {
         drawCell(obs.x, obs.y, obs.color);
     });
     
-    // Cibo
     ctx.save();
     ctx.shadowColor = "#FF0";
     ctx.shadowBlur = 15;
@@ -292,7 +234,6 @@ function render() {
     );
     ctx.restore();
     
-    // Serpenti
     if (snake1.alive) {
         snake1.body.forEach((seg, i) => {
             drawCell(seg.x, seg.y, snake1.color, i === 0);
@@ -305,7 +246,6 @@ function render() {
         });
     }
     
-    // Particelle
     particles.forEach((p, i) => {
         ctx.fillStyle = p.color;
         ctx.globalAlpha = p.life / 50;
@@ -317,18 +257,23 @@ function render() {
         p.y += p.speed.y;
         p.life--;
         
-        if (p.life <= 0) {
-            particles.splice(i, 1);
-        }
+        if (p.life <= 0) particles.splice(i, 1);
     });
     ctx.globalAlpha = 1;
     
-    // UI
     p1Score.textContent = `Player 1: ${snake1.score}`;
     p2Score.textContent = `Player 2: ${snake2.score}`;
+}
+
+// Game loop
+function gameLoop() {
+    if (snake1.alive) moveSnake(snake1);
+    if (snake2.alive) moveSnake(snake2);
     
-    // Game Over
-    if ((!snake1.alive && !snake2.alive) || (!gameActive && document.hasFocus())) {
+    checkCollisions();
+    render();
+    
+    if (!snake1.alive && !snake2.alive) {
         gameOver();
     }
 }
@@ -347,42 +292,68 @@ function gameOver() {
         
         let message;
         if (!snake1.alive && !snake2.alive) {
-            message = "ENTRAMBI ELIMINATI!";
+            message = "DOUBLE KO!";
         } else if (snake1.alive) {
-            message = "PLAYER 1 VINCE!";
+            message = "PLAYER 1 WINS!";
         } else {
-            message = "PLAYER 2 VINCE!";
+            message = "PLAYER 2 WINS!";
         }
         
         ctx.fillText(message, canvas.width/2, canvas.height/2 - 30);
         ctx.font = "20px Arial";
-        ctx.fillText(`Punteggio: ${snake1.score} - ${snake2.score}`, canvas.width/2, canvas.height/2 + 10);
-        ctx.fillText("Premi SPAZIO per rigiocare", canvas.width/2, canvas.height/2 + 40);
+        ctx.fillText(`Final: ${snake1.score} - ${snake2.score}`, canvas.width/2, canvas.height/2 + 10);
+        ctx.fillText("Press SPACE to restart", canvas.width/2, canvas.height/2 + 40);
     }
 }
 
-function resetGame() {
-    // Resetta serpenti (direzioni opposte)
+// Controlli
+document.addEventListener("keydown", e => {
+    if (!gameActive && e.key === " ") {
+        startGame();
+        return;
+    }
+    
+    switch(e.key) {
+        case "ArrowUp": if (snake1.alive && snake1.direction.y === 0) snake1.nextDirection = {x: 0, y: -1}; break;
+        case "ArrowDown": if (snake1.alive && snake1.direction.y === 0) snake1.nextDirection = {x: 0, y: 1}; break;
+        case "ArrowLeft": if (snake1.alive && snake1.direction.x === 0) snake1.nextDirection = {x: -1, y: 0}; break;
+        case "ArrowRight": if (snake1.alive && snake1.direction.x === 0) snake1.nextDirection = {x: 1, y: 0}; break;
+        case "w": if (snake2.alive && snake2.direction.y === 0) snake2.nextDirection = {x: 0, y: -1}; break;
+        case "s": if (snake2.alive && snake2.direction.y === 0) snake2.nextDirection = {x: 0, y: 1}; break;
+        case "a": if (snake2.alive && snake2.direction.x === 0) snake2.nextDirection = {x: -1, y: 0}; break;
+        case "d": if (snake2.alive && snake2.direction.x === 0) snake2.nextDirection = {x: 1, y: 0}; break;
+    }
+});
+
+function startGame() {
+    // Reset serpenti
     snake1.body = [{x: 8, y: 10}, {x: 7, y: 10}, {x: 6, y: 10}];
     snake1.direction = {x: 1, y: 0};
     snake1.nextDirection = {x: 1, y: 0};
     snake1.alive = true;
+    snake1.score = 0;
     
     snake2.body = [{x: 12, y: 10}, {x: 13, y: 10}, {x: 14, y: 10}];
     snake2.direction = {x: -1, y: 0};
     snake2.nextDirection = {x: -1, y: 0};
     snake2.alive = true;
+    snake2.score = 0;
     
-    // Resetta elementi di gioco
-    food = generatePosition();
+    // Reset elementi di gioco
     obstacles = [];
     particles = [];
+    food = generatePosition();
     
     // Avvia gioco
     gameActive = true;
+    clearInterval(gameInterval);
     gameInterval = setInterval(gameLoop, 150);
+    
+    // Aggiorna UI
+    p1Score.textContent = "Player 1: 0";
+    p2Score.textContent = "Player 2: 0";
 }
 
 // Inizializzazione
-startBtn.addEventListener("click", resetGame);
-resetGame();
+startBtn.addEventListener("click", startGame);
+startGame();
